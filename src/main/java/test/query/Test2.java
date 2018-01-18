@@ -31,7 +31,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import test.bean.RowData;
 
-public class Test1 {
+public class Test2 {
 	
 	static byte[] KEY_DELIMITER = new byte[]{0};
 	static Configuration conf=null;
@@ -55,10 +55,10 @@ public class Test1 {
 //		System.out.println((b));
 		
 		try {
-			String tableName = "test_s";
+			String tablename = "test";
 			// HBaseTestCase.creatTable(tablename);
 			// Test1.addData(tablename);
-			Test1.creatTable(tableName);
+			//Test1.creatTable(tablename);
 			// Test1.getData(tablename);
 			//Test1.getAllData(tablename);
 			// Test1.deleteData(tablename);
@@ -66,55 +66,25 @@ public class Test1 {
 			//Test1.addIndexTable();
 //			byte[] i=new byte[]{01};
 //			System.out.println(new String(i));
-			//Test1.findByColumn(tablename, "name".getBytes(), "xiaohong".getBytes());
-//			RowData rowData=new RowData();
-//			rowData.setRowKey(Bytes.toBytes(20));
-//			rowData.setFamily("f1".getBytes());
-//			rowData.setQualifier("name".getBytes());
-//			rowData.setValue("xiaoh".getBytes());
-//			Test1.addData(tableName, rowData);
+			Test2.findByColumn(tablename, "name".getBytes(), "xiaohong".getBytes());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public static void creatTable(String tablename) throws Exception {
+	public static void creatTable(String tablename,String familyName) throws Exception {
 		Admin admin =  connection.getAdmin();
 		if (admin.tableExists(TableName.valueOf(tablename))) {
 			System.out.println("table Exists!!!");
 		} else {
 			HTableDescriptor tableDesc = new HTableDescriptor(TableName.valueOf(tablename));
-			tableDesc.addFamily(new HColumnDescriptor("basic_info"));
-			//admin.createTable(tableDesc);
-			byte[][] splitKeys=new byte[4][];
-			for(int i=0;i<4;i++){
-				splitKeys[i]=Bytes.toBytes((i+1)*20);
-			}
-			admin.createTable(tableDesc, splitKeys);
-			//admin.set
+			tableDesc.addFamily(new HColumnDescriptor(familyName));
+			admin.createTable(tableDesc);
 			System.out.println("create table ok .");
 		}
 	}
 
-	public static void addData(String tablename) throws Exception {
-		Table table = connection.getTable(TableName.valueOf(tablename));
-		byte[] rowKey=Bytes.add("row@eeeee_".getBytes(), Bytes.toBytes(0));
-		KeyValue kv = new KeyValue(rowKey, "basic_info".getBytes(), "name".getBytes(), "xiaoh".getBytes());
-		Put put = new Put(rowKey);
-		put.add(kv);
-		table.put(put);
-		System.out.println("add data ok .");
-	}
-	
-	
-	public static void getData(String tableName) throws IOException {
-		Table table = connection.getTable(TableName.valueOf(tableName));
-		Get get = new Get("row1".getBytes());
-		Result rs = table.get(get);
-		String value = new String(rs.getValue("basic_info".getBytes(), "name".getBytes()));
-		System.out.println(value);
-	}
-	
+
 	public static void getData(String tableName,RowData rowData) throws IOException {
 		Table table = connection.getTable(TableName.valueOf(tableName));
 		Get get = new Get(rowData.getRowKey());
@@ -134,10 +104,10 @@ public class Test1 {
 		}
 	}
 
-	public static void deleteData(String tablename) throws IOException {
+	public static void deleteData(String tablename,RowData rowData) throws IOException {
 		Table table = connection.getTable(TableName.valueOf(tablename));
-		Delete delete = new Delete("row1".getBytes());
-		delete.addColumn("basic_info".getBytes(), "name".getBytes());
+		Delete delete = new Delete(rowData.getRowKey());
+		delete.addColumn(rowData.getFamily(), rowData.getQualifier());
 		// delete column, if no column , will delete the whole row
 		// delete.deleteColumn("basic_info".getBytes(), "name".getBytes());
 		table.delete(delete);
@@ -170,6 +140,7 @@ public class Test1 {
 	}
 	
 	public static void addIndexTable() throws Exception{
+		//insert data
 		RowData tableRow=new RowData();
 		byte[] rowKey="tableRow1".getBytes();
 		byte[] column="name".getBytes();
@@ -180,6 +151,7 @@ public class Test1 {
 		tableRow.setQualifier(column);
 		tableRow.setValue(value);
 		
+		//insert index
 		RowData indexRow=new RowData();
 		indexRow.setRowKey(createIndexKey(rowKey,column,value));
 		indexRow.setFamily("value".getBytes());
@@ -190,6 +162,13 @@ public class Test1 {
 		addData("test.i",indexRow);
 	}
 	
+	/**
+	 * find the index column
+	 * @param tableName
+	 * @param columnName
+	 * @param columnValue
+	 * @throws Exception
+	 */
 	public static void findByColumn(String tableName,byte[] columnName, byte[] columnValue) throws Exception{
 		String indexTabName=tableName+".i";
 		//get rowKey
@@ -217,10 +196,23 @@ public class Test1 {
 		System.out.println("add data ok .");
 	}
 	
+	/**
+	 * for insert index table
+	 * @param row guarantees the only rowkey
+	 * @param column
+	 * @param value
+	 * @return
+	 */
 	private static byte[] createIndexKey(byte[] row, byte[] column, byte[] value) {
 		return test.utils.Bytes.concat(column, KEY_DELIMITER, value, KEY_DELIMITER, row);
 	}
 	
+	/**
+	 * for search index table
+	 * @param column
+	 * @param value
+	 * @return
+	 */
 	private static byte[] createIndexKey(byte[] column, byte[] value) {
 		return test.utils.Bytes.concat(column, KEY_DELIMITER, value);
 	}
