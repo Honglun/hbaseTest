@@ -11,7 +11,7 @@ public class Test {
 	
 	public static void main(String[] args) throws UnsupportedEncodingException {
 		long l = 1234567890L;
-		byte[] lb = Bytes.toBytes(l);
+		byte[] lb = Bytes.toBytes(l);    
 		System.out.println("long bytes length: " + lb.length);   // returns 8
 
 		String s = "" + l;

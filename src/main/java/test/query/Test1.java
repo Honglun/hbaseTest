@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -49,19 +51,24 @@ public class Test1 {
 	
 	
 	public static void main(String[] agrs) {
-		
-//		int i=0xFF;
-//		byte b=(byte)i;
-//		System.out.println((b));
+		String tableName="";
+		String rowKey="d6df3475fa109370b44447ea43914e753b57dcb2";
+		String family="";
+		String column="";
+		if(agrs.length==2){
+			
+		}
+
 		
 		try {
-			String tableName = "test_s";
+			//cdap_assuredplus:OaxisOnBoardDeviceDataSet
+			tableName = "cdap_assuredplus:OaxisOnBoardDeviceDataSet";
 			// HBaseTestCase.creatTable(tablename);
 			// Test1.addData(tablename);
-			Test1.creatTable(tableName);
-			// Test1.getData(tablename);
-			//Test1.getAllData(tablename);
-			// Test1.deleteData(tablename);
+			//Test1.creatTable(tableName);
+			// Test1.getData(tableName);
+			//Test1.getAllData(tableName);
+			// Test1.deleteData(tableName);
 			//Test1.scan(tablename);
 			//Test1.addIndexTable();
 //			byte[] i=new byte[]{01};
@@ -73,6 +80,7 @@ public class Test1 {
 //			rowData.setQualifier("name".getBytes());
 //			rowData.setValue("xiaoh".getBytes());
 //			Test1.addData(tableName, rowData);
+			Test1.deleteRow(tableName, rowKey.getBytes());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -108,10 +116,16 @@ public class Test1 {
 	
 	
 	public static void getData(String tableName) throws IOException {
+		//8296746667235794835 1508827576941000000
+		//10123352874082195
 		Table table = connection.getTable(TableName.valueOf(tableName));
-		Get get = new Get("row1".getBytes());
+		Get get = new Get(Bytes.toBytes(10123352874082195l));
 		Result rs = table.get(get);
-		String value = new String(rs.getValue("basic_info".getBytes(), "name".getBytes()));
+//		NavigableMap<byte[], byte[]> familyMap = rs.getFamilyMap("q".getBytes());
+//		for(Entry<byte[], byte[]> e:familyMap.entrySet()){
+//			System.out.println(Bytes.toLong(e.getKey())+" "+Bytes.toLong(e.getValue()));
+//		}
+		String value = new String(rs.getValue("q".getBytes(), Bytes.toBytes(8296746667235794835l)));
 		System.out.println(value);
 	}
 	
@@ -125,21 +139,94 @@ public class Test1 {
 
 	public static void getAllData(String tablename) throws Exception {
 		Table table = connection.getTable(TableName.valueOf(tablename));
+		
+		//List<Delete> deletes=new ArrayList<>();
 		Scan s = new Scan();
+		//s.setFilter();
 		ResultScanner rs = table.getScanner(s);
 
 		for (Result r = rs.next(); r != null; r = rs.next()) {
 			byte[] rowB = r.getRow();
-			System.out.println(new String(rowB));
+			byte[] cloumnB=r.getValue("d".getBytes(), "subAccountEmail".getBytes());
+			NavigableMap<byte[], byte[]> familyMap = r.getFamilyMap("d".getBytes());
+			
+			if(cloumnB!=null){
+				//System.out.println(new String(rowB)+"   "+ new String(cloumnB));
+				//System.out.println();
+			}else{
+				//System.out.println(rowB);
+				//System.out.println(deletes);
+//				System.out.println(new String(rowB));
+				Delete delete = new Delete(rowB);
+				delete.setAttribute("tephra.tx.rollback", "1".getBytes());
+				//delete.setAttribute("cask.tx.rollback", "1".getBytes());
+				for(byte[] qualifier: familyMap.keySet()){
+					//System.out.println("column "+new String(qualifier)+" value "+new String(familyMap.get(qualifier)));
+					delete.addColumn("d".getBytes(), qualifier);
+				}
+				
+				//table.delete(delete);
+				//delete.addColumn("d".getBytes());
+				
+				//System.out.println(new String(rowB)+" delete data ok .");
+			}
+			
+			
 		}
+		table.close();
+		//System.out.println(deletes);
+		//Table tab2 = connection.getTable(TableName.valueOf(tablename));
+		//tab2.delete(deletes);
+		//tab2.close();
+	}
+	
+	
+	public void deleteColumn(String tableName,byte[] rowKey,byte[] family,byte[] qualifier) throws Exception{
+		Table table = connection.getTable(TableName.valueOf(tableName));
+		Delete delete = new Delete(rowKey);
+		delete.setAttribute("tephra.tx.rollback", "1".getBytes());
+		delete.addColumn(family, qualifier);
+		table.delete(delete);
+		table.close();
+	}
+	
+	public void deleteFamily(String tableName,byte[] rowKey,byte[] family) throws Exception{
+		Table table = connection.getTable(TableName.valueOf(tableName));
+		Result result = table.get(new Get(rowKey));
+		Delete delete = new Delete(rowKey);
+		delete.setAttribute("tephra.tx.rollback", "1".getBytes());
+		NavigableMap<byte[], byte[]> familyMap = result.getFamilyMap(family);
+		for(byte[] qualifier: familyMap.keySet()){
+			delete.addColumns(family, qualifier);
+		}
+		table.delete(delete);
+		table.close();
+	}
+	
+	public static void deleteRow(String tableName,byte[] rowKey) throws Exception{
+		Table table = connection.getTable(TableName.valueOf(tableName));
+		Result result = table.get(new Get(rowKey));
+		Delete delete = new Delete(rowKey);
+		delete.setAttribute("tephra.tx.rollback", "1".getBytes());
+		NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> rowMap = result.getMap();
+		for(byte[] f:rowMap.keySet()){
+			Set<byte[]> qualifierSet = rowMap.get(f).keySet();
+			for(byte[] qualifier: qualifierSet){
+				delete.addColumns(f, qualifier);
+			}
+		}
+		table.delete(delete);
+		table.close();
 	}
 
 	public static void deleteData(String tablename) throws IOException {
 		Table table = connection.getTable(TableName.valueOf(tablename));
-		Delete delete = new Delete("row1".getBytes());
-		delete.addColumn("basic_info".getBytes(), "name".getBytes());
+		Delete delete = new Delete("903d4ba7d12169b70a94ca0caa621c36e590c921".getBytes());
+		//delete.addColumn("basic_info".getBytes(), "name".getBytes());
 		// delete column, if no column , will delete the whole row
 		// delete.deleteColumn("basic_info".getBytes(), "name".getBytes());
+		delete.setAttribute("tephra.tx.rollback", "1".getBytes());
+		delete.addColumn("d".getBytes(), "HostDeviceUniqueId".getBytes());
 		table.delete(delete);
 		System.out.println("delete data ok .");
 	}
