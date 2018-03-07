@@ -8,7 +8,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.util.Bytes;
 
 public class Test {
-	
+	//git not work
 	public static void main(String[] args) throws UnsupportedEncodingException {
 		long l = 1234567890L;
 		byte[] lb = Bytes.toBytes(l);    
